@@ -36,35 +36,41 @@ def install_docker():
     """Install Docker using the official Docker repository"""
     if shutil.which('docker'):
         print("Docker is already installed, skipping Docker installation.")
+        return
         
-    else:
-        print("Installing Docker using the official Docker repository...")
-        
-        # Remove any old versions
-        subprocess.run(['sudo', 'dnf', 'remove', '-y', 'docker', 'docker-client', 'docker-client-latest', 
-                       'docker-common', 'docker-latest', 'docker-latest-logrotate', 'docker-logrotate', 'docker-engine'])
+    print("Installing Docker using the official Docker repository...")
+    
+    # Remove any old versions (using dnf remove -y with a single transaction)
+    subprocess.run(['sudo', 'dnf', 'remove', '-y', 
+                   'docker', 'docker-client', 'docker-client-latest', 
+                   'docker-common', 'docker-latest', 'docker-latest-logrotate',
+                   'docker-logrotate', 'docker-engine'])
 
-        # Set up repository
-        subprocess.run(['sudo', 'dnf', '-y', 'install', 'dnf-plugins-core'])
-        subprocess.run(['sudo', 'dnf', 'config-manager', '--add-repo', 
-                       'https://download.docker.com/linux/fedora/docker-ce.repo'])
+    # Set up repository
+    subprocess.run(['sudo', 'dnf', '-y', 'install', 'dnf-plugins-core'])
+    
+    # Use dnf config-manager correctly (fixed syntax)
+    subprocess.run(['sudo', 'dnf', 'config-manager', 
+                   '--add-repo=https://download.docker.com/linux/fedora/docker-ce.repo'])
 
-        # Install Docker Engine
-        subprocess.run(['sudo', 'dnf', 'install', '-y', 'docker-ce', 'docker-ce-cli', 'containerd.io',
-                       'docker-buildx-plugin', 'docker-compose-plugin'])
+    # Install Docker Engine (first update dnf to refresh repos)
+    subprocess.run(['sudo', 'dnf', '-y', 'update'])
+    
+    # Create docker group before installation
+    subprocess.run(['sudo', 'groupadd', '-f', 'docker'])
+    
+    # Install Docker packages
+    subprocess.run(['sudo', 'dnf', '-y', 'install', 
+                   'docker-ce', 'docker-ce-cli', 'containerd.io',
+                   'docker-buildx-plugin', 'docker-compose-plugin'])
 
-        # Start and enable Docker
-        subprocess.run(['sudo', 'systemctl', 'start', 'docker'])
-        subprocess.run(['sudo', 'systemctl', 'enable', 'docker'])
+    # Start and enable Docker
+    subprocess.run(['sudo', 'systemctl', 'start', 'docker'])
+    subprocess.run(['sudo', 'systemctl', 'enable', 'docker'])
 
-    # Add user to docker group if not already in it
-    groups = subprocess.check_output(['groups', ORIGINAL_USER]).decode()
-    if 'docker' not in groups:
-        print(f"Adding user {ORIGINAL_USER} to the docker group...")
-        subprocess.run(['sudo', 'usermod', '-aG', 'docker', ORIGINAL_USER])
-        print(f"User {ORIGINAL_USER} has been added to the docker group.")
-    else:
-        print(f"User {ORIGINAL_USER} is already in the docker group, skipping...")
+    # Add user to docker group
+    subprocess.run(['sudo', 'usermod', '-aG', 'docker', ORIGINAL_USER])
+    print(f"User {ORIGINAL_USER} has been added to the docker group.")
 
     print("Docker has been installed and configured successfully.")
 
